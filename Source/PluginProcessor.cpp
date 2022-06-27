@@ -194,66 +194,47 @@ void SimpleEQAudioProcessor::setStateInformation (const void* data, int sizeInBy
     // whose contents will have been created by the getStateInformation() call.
 }
 
+juce::StringArray createSliderStrArray(
+    int num_notches, int interval, std::string uom_label)
+{
+    juce::StringArray result;
+    for (int i = 0; i < num_notches; ++i)
+    {
+        juce::String str;
+        str << (interval + i * interval);
+        str << uom_label;
+        result.add(str);
+    }
+    return result;
+}
+
 juce::AudioProcessorValueTreeState::ParameterLayout
 SimpleEQAudioProcessor::createParameterLayout()
 {
+#define ADD_ARGS(ID, MIN, MAX, INTERVAL, SKEW, DEFAULT)       \
+    std::make_unique<juce::AudioParameterFloat>               \
+        (   ID, ID,                                           \
+            juce::NormalisableRange<float>(                   \
+                MIN ## f, MAX ## f, INTERVAL ##f, SKEW ## f), \
+            DEFAULT ## f                                      \
+        )  
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
+                             
+    layout.add(ADD_ARGS("LowCut Freq",  20., 20000., 1.,   1.,    20. ));
+    layout.add(ADD_ARGS("HighCut Freq", 20., 20000., 1.,   1., 20000. ));
+    layout.add(ADD_ARGS("Peak Freq",    20., 20000., 1.,   1.,   750. ));
+    layout.add(ADD_ARGS("Peak Gain",   -24.,    24., 0.5,  1.,     0.0));
+    layout.add(ADD_ARGS("Peak Quality",  0.1,   10., 0.05, 1.,     1. ));
 
-    layout.add(std::make_unique<juce::AudioParameterFloat>
-        (
-            "LowCut Freq",
-            "LowCut Freq",
-            juce::NormalisableRange<float>(20.f, 20000.f, 1.f, 1.f),
-            20.f
-        )
-    );
-    layout.add(std::make_unique<juce::AudioParameterFloat>
-        (
-            "HighCut Freq",
-            "HighCut Freq",
-            juce::NormalisableRange<float>(20.f, 20000.f, 1.f, 1.f),
-            20000.f
-            )
-    );
-    layout.add(std::make_unique<juce::AudioParameterFloat>
-        (
-            "Peak Freq",
-            "Peak Freq",
-            juce::NormalisableRange<float>(20.f, 20000.f, 1.f, 1.f),
-            750.f
-            )
-    );
-    layout.add(std::make_unique<juce::AudioParameterFloat>
-        (
-            "Peak Gain",
-            "Peak Gain",
-            juce::NormalisableRange<float>(-24.f, 24.f, 0.5f, 1.f),
-            0.0f
-            )
-    );
-    layout.add(std::make_unique<juce::AudioParameterFloat>
-        (
-            "Peak Quality",
-            "Peak Quality",
-            juce::NormalisableRange<float>(0.1f, 10.f, 0.05f, 1.f),
-            1.f
-            )
-    );
-    juce::StringArray stringArray;
-    for (int i = 0; i < 4; ++i)
-    {
-        juce::String str;
-        str << (12 + i * 12);
-        str << " db/Oct";
-        stringArray.add(str);
-    }
+    juce::StringArray dbStringArray = createSliderStrArray(4, 12, " db/Oct");
 
     layout.add(std::make_unique<juce::AudioParameterChoice>(
-        "LowCut Slope", "LowCut Slope", stringArray, 0));
+        "LowCut Slope", "LowCut Slope", dbStringArray, 0));
     layout.add(std::make_unique<juce::AudioParameterChoice>(
-        "HightCut Slope", "HighCut Slope", stringArray, 0));
+        "HightCut Slope", "HighCut Slope", dbStringArray, 0));
     
     return layout;
+#undef ADD_ARGS
 }
 
 //==============================================================================
