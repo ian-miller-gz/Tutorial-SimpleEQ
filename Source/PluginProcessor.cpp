@@ -106,6 +106,16 @@ void SimpleEQAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlo
 
     leftChain.prepare(spec);
     rightChain.prepare(spec);
+
+   ChainSettings chainSettings = getChainSettings(apvts);
+   auto peakCoefficients = juce::dsp::IIR::Coefficients<float>::makePeakFilter(
+        sampleRate, 
+        chainSettings.peakFreq, 
+        chainSettings.peakQuality, 
+        juce::Decibels::decibelsToGain(chainSettings.peakGainDecibels));
+
+    *leftChain.get<ChainPositions::Peak>().coefficients = *peakCoefficients;
+    *rightChain.get<ChainPositions::Peak>().coefficients = *peakCoefficients;
 }
 
 void SimpleEQAudioProcessor::releaseResources()
@@ -155,6 +165,16 @@ void SimpleEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
+    ChainSettings chainSettings = getChainSettings(apvts);
+    auto peakCoefficients = juce::dsp::IIR::Coefficients<float>::makePeakFilter(
+        getSampleRate(),
+        chainSettings.peakFreq,
+        chainSettings.peakQuality,
+        juce::Decibels::decibelsToGain(chainSettings.peakGainDecibels));
+
+    *leftChain.get<ChainPositions::Peak>().coefficients = *peakCoefficients;
+    *rightChain.get<ChainPositions::Peak>().coefficients = *peakCoefficients;
+
     juce::dsp::AudioBlock<float> block(buffer);
 
     auto leftBlock = block.getSingleChannelBlock(0);
@@ -194,8 +214,23 @@ void SimpleEQAudioProcessor::setStateInformation (const void* data, int sizeInBy
     // whose contents will have been created by the getStateInformation() call.
 }
 
+ChainSettings getChainSettings(juce::AudioProcessorValueTreeState& apvts)
+{
+    ChainSettings settings;
+ 
+    settings.lowCutFreq = apvts.getRawParameterValue("LowCut Freq")->load();
+    settings.highCutFreq = apvts.getRawParameterValue("HighCut Freq")->load();
+    settings.peakFreq = apvts.getRawParameterValue("Peak Freq")->load();
+    settings.peakGainDecibels = apvts.getRawParameterValue("Peak Gain")->load();
+    settings.peakQuality = apvts.getRawParameterValue("Peak Quality")->load();
+    settings.lowCutSlope = apvts.getRawParameterValue("LowCut Slope")->load();
+    settings.highCutSlope = apvts.getRawParameterValue("HighCut Slope")->load();
+
+    return settings;
+}
+
 juce::StringArray createSliderStrArray(
-    int num_notches, int interval, std::string uom_label)
+    int num_notches, int interval, const std::string& uom_label)
 {
     juce::StringArray result;
     for (int i = 0; i < num_notches; ++i)
@@ -211,29 +246,28 @@ juce::StringArray createSliderStrArray(
 juce::AudioProcessorValueTreeState::ParameterLayout
 SimpleEQAudioProcessor::createParameterLayout()
 {
-#define ADD_ARGS(ID, MIN, MAX, INTERVAL, SKEW, DEFAULT)       \
-    std::make_unique<juce::AudioParameterFloat>               \
-        (   ID, ID,                                           \
-            juce::NormalisableRange<float>(                   \
-                MIN ## f, MAX ## f, INTERVAL ##f, SKEW ## f), \
-            DEFAULT ## f                                      \
-        )  
+#define ADD_ARGS(ID, MIN, MAX, INTERVAL, SKEW, DEFAULT)                     \
+    layout.add(std::make_unique<juce:: AudioParameterFloat >                           \
+        (   ID, ID, juce::NormalisableRange<float>(                         \
+                MIN ## f, MAX ## f, INTERVAL ##f, SKEW ## f), DEFAULT ## f  \
+        )  )
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
+    juce::StringArray dbStringArray =
+        createSliderStrArray(4, 12, " db/Oct");
                              
-    layout.add(ADD_ARGS("LowCut Freq",  20., 20000., 1.,   1.,    20. ));
-    layout.add(ADD_ARGS("HighCut Freq", 20., 20000., 1.,   1., 20000. ));
-    layout.add(ADD_ARGS("Peak Freq",    20., 20000., 1.,   1.,   750. ));
-    layout.add(ADD_ARGS("Peak Gain",   -24.,    24., 0.5,  1.,     0.0));
-    layout.add(ADD_ARGS("Peak Quality",  0.1,   10., 0.05, 1.,     1. ));
-
-    juce::StringArray dbStringArray = createSliderStrArray(4, 12, " db/Oct");
+    ADD_ARGS("LowCut Freq",  20., 20000., 1.,   0.25,    20. );
+    ADD_ARGS("HighCut Freq", 20., 20000., 1.,   0.25, 20000. );
+    ADD_ARGS("Peak Freq",    20., 20000., 1.,   0.25,   750. );
+    ADD_ARGS("Peak Gain",   -24.,    24., 0.5,  0.25,     0.0);
+    ADD_ARGS("Peak Quality",  0.1,   10., 0.05, 1.,       1. );
 
     layout.add(std::make_unique<juce::AudioParameterChoice>(
-        "LowCut Slope", "LowCut Slope", dbStringArray, 0));
+        "LowCut Slope",  "LowCut Slope",  dbStringArray, 0) );
     layout.add(std::make_unique<juce::AudioParameterChoice>(
-        "HightCut Slope", "HighCut Slope", dbStringArray, 0));
+        "HighCut Slope", "HighCut Slope", dbStringArray, 0) );
     
     return layout;
+
 #undef ADD_ARGS
 }
 
