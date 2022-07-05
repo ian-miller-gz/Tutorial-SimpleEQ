@@ -298,7 +298,7 @@ SimpleEQAudioProcessor::createParameterLayout()
     ADD_ARGS("LowCut Freq",  20., 20000., 1.,   0.25,    20. );
     ADD_ARGS("HighCut Freq", 20., 20000., 1.,   0.25, 20000. );
     ADD_ARGS("Peak Freq",    20., 20000., 1.,   0.25,   750. );
-    ADD_ARGS("Peak Gain",   -24.,    24., 0.5,  0.25,     0.0);
+    ADD_ARGS("Peak Gain",   -24.,    24., 0.5,  1.,     0.0);
     ADD_ARGS("Peak Quality",  0.1,   10., 0.05, 1.,       1. );
 
     layout.add(std::make_unique<juce::AudioParameterChoice>(
