@@ -241,7 +241,7 @@ void SimpleEQAudioProcessor::updatePeakFilter(
         rightChain.get<ChainPositions::Peak>().coefficients, peakCoefficients);
 }
 
-void updateCoefficients(
+void  updateCoefficients(
     Coefficients& old, const Coefficients& replacements)
 {
     *old = *replacements;
