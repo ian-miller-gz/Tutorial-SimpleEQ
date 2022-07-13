@@ -203,26 +203,26 @@ void ResponseCurveComponent::parameterValueChanged(int parameterIndex, float new
 }
 
 void ResponseCurveComponent::timerCallback()
-{ 
+{
     if (parametersChanged.compareAndSetBool(false, true))
     {
-        DBG("params changed");
+    DBG("params changed");
 
-        //update the monochain
-        updateChain();
+    //update the monochain
+    updateChain();
 
-       /* auto chainSettings = getChainSettings(audioProcessor.apvts);
-        auto peakCoefficients = makePeakFilter(chainSettings, audioProcessor.getSampleRate());
-        updateCoefficients(monoChain.get<ChainPositions::Peak>().coefficients, peakCoefficients);
+    /* auto chainSettings = getChainSettings(audioProcessor.apvts);
+     auto peakCoefficients = makePeakFilter(chainSettings, audioProcessor.getSampleRate());
+     updateCoefficients(monoChain.get<ChainPositions::Peak>().coefficients, peakCoefficients);
 
-        auto lowCutCoefficients = makeLowCutFilter(chainSettings, audioProcessor.getSampleRate());
-        auto highCutCoefficients = makeHighCutFilter(chainSettings, audioProcessor.getSampleRate());
+     auto lowCutCoefficients = makeLowCutFilter(chainSettings, audioProcessor.getSampleRate());
+     auto highCutCoefficients = makeHighCutFilter(chainSettings, audioProcessor.getSampleRate());
 
-        updateCutFilter(monoChain.get<ChainPositions::LowCut>(), lowCutCoefficients, chainSettings.lowCutSlope);
-        updateCutFilter(monoChain.get<ChainPositions::HighCut>(), highCutCoefficients, chainSettings.highCutSlope);*/
+     updateCutFilter(monoChain.get<ChainPositions::LowCut>(), lowCutCoefficients, chainSettings.lowCutSlope);
+     updateCutFilter(monoChain.get<ChainPositions::HighCut>(), highCutCoefficients, chainSettings.highCutSlope);*/
 
-        //signal a repaint
-        repaint();
+     //signal a repaint
+    repaint();
     }
 }
 
@@ -239,19 +239,41 @@ void ResponseCurveComponent::updateChain()
     updateCutFilter(monoChain.get<ChainPositions::HighCut>(), highCutCoefficients, chainSettings.highCutSlope);
 }
 
+int startSubPath(
+    juce::Path& responseCurve,
+    const std::vector <double>& map,
+    const double& min, 
+    const float& x)
+{
+    bool isFoundStart = false;
+    if (map.front() <= min)
+    {
+        isFoundStart = true;
+        responseCurve.startNewSubPath(x, map.front());
+    }
+    int j = 1;
+    while (!isFoundStart && j < map.size())
+    {
+        if (map[j] <= min)
+        {
+            responseCurve.startNewSubPath(x + j - 1, min);
+            responseCurve.lineTo(x + j, map[j]);
+            isFoundStart = true;
+        }
+        j++;
+    }
+    return j;
+}
+
 void ResponseCurveComponent::paint(juce::Graphics& g)
 {
     using namespace juce;
 
     g.fillAll(Colours::black);
 
-    auto background_bounds = getLocalBounds();
-    //background_bounds.removeFromTop(10);
-    //background_bounds.removeFromBottom(10);
-    g.drawImage(background, background_bounds.toFloat());
+    g.drawImage(background, getLocalBounds().toFloat());
 
-    //auto responseArea = getLocalBounds();
-    auto responseArea = getAnalysisArea();//getRenderArea();
+    auto responseArea = getAnalysisArea();
 
     auto w = responseArea.getWidth();
 
@@ -260,7 +282,7 @@ void ResponseCurveComponent::paint(juce::Graphics& g)
     auto& highCut = monoChain.get<ChainPositions::HighCut>();
     auto sampleRate = audioProcessor.getSampleRate();
 
-    std::vector<double> mags; 
+    std::vector<double> mags;
 
     mags.resize(w);
 
@@ -295,26 +317,40 @@ void ResponseCurveComponent::paint(juce::Graphics& g)
 
     Path responseCurve;
 
+    responseArea = getAnalysisArea();
+
     const double outputMin = responseArea.getBottom();
     const double outputMax = responseArea.getY();
     auto map = [outputMin, outputMax](double input)
     {
         return jmap(input, -24.0, 24.0, outputMin, outputMax);
     };
-
-    responseCurve.startNewSubPath(responseArea.getX(), map(mags.front()));
-
-    for (size_t i = 1; i < mags.size(); i++)
+    std::vector<double> mmags;
+    mmags.resize(w);
+    for (int i = 0; i < w; i++)
     {
-        responseCurve.lineTo(responseArea.getX() + i, map(mags[i]));
+        mmags[i] = map(mags[i]);
     }
 
-    g.setColour(Colours::orange);
-    g.drawRoundedRectangle(getRenderArea().toFloat(), 4.f, 1.f);
+    int j = startSubPath(responseCurve, mmags, outputMin, responseArea.getX());
+
+    while (j < mmags.size())
+    {
+        if (mmags[j] < outputMin)
+        {
+            responseCurve.lineTo(responseArea.getX() + j, mmags[j]);
+        }
+        else if (mmags[j] >= outputMin)
+        {
+            responseCurve.lineTo(responseArea.getX() + j, outputMin);
+            std::vector <double> sub(&mmags[j], &mmags[mmags.size() - 1]);
+            j += startSubPath(responseCurve, sub, outputMin, responseArea.getX() + j);
+        }
+        j++;
+    }
 
     g.setColour(Colours::white);
-    g.strokePath(responseCurve, PathStrokeType(2.f));
-
+    g.strokePath(responseCurve, PathStrokeType(1.f));
 }
 
 void ResponseCurveComponent::resized()
@@ -333,6 +369,10 @@ void ResponseCurveComponent::resized()
     };
 
     auto renderArea = getAnalysisArea();
+    auto pass_area = getRenderArea();
+
+    auto pass_top = pass_area.getY();
+    auto pass_bottom = pass_area.getBottom();
 
     auto left = renderArea.getX();
     auto right = renderArea.getRight();
@@ -348,12 +388,15 @@ void ResponseCurveComponent::resized()
     }
 
     g.setColour(Colours::dimgrey);
-    for (auto x : xs)
+    for (int i = 0; i < xs.size(); i++)
     {
         //auto normX = mapFromLog10(f, 20.f, 20000.f);
 
         //g.drawVerticalLine(getWidth() * normX, 0.f, getHeight());
-        g.drawVerticalLine(x, top, bottom);
+        if (i && i != xs.size() - 1)
+        {
+            g.drawVerticalLine(xs[i], pass_top, pass_bottom);
+        }
     }
 
     Array<float> gain
@@ -421,15 +464,27 @@ void ResponseCurveComponent::resized()
 
         g.setColour(gDb == 0.f ? Colour(0u, 172, 1u) : Colours::lightgrey);
         g.drawFittedText(str, r, juce::Justification::centred, 1);
+
+        str.clear();
+        str << (gDb - 24.f);
+
+        r.setX(1);
+        textWidth = g.getCurrentFont().getStringWidth(str);
+        r.setSize(textWidth, fontHeight);
+        g.setColour(Colours::lightgrey);
+        g.drawFittedText(str, r, juce::Justification::centred, 1);
     }
+
+    g.setColour(Colours::orange);
+    g.drawRoundedRectangle(getRenderArea().toFloat(), 8.f, 1.f);
 }
 
 juce::Rectangle<int> ResponseCurveComponent::getAnalysisArea()
 {
     auto bounds = getRenderArea();
 
-    bounds.removeFromTop(4);
-    bounds.removeFromBottom(4);
+    bounds.removeFromTop(8);
+    bounds.removeFromBottom(8);
 
     return bounds;
 }
@@ -443,9 +498,10 @@ juce::Rectangle<int> ResponseCurveComponent::getRenderArea()
     //    5 //JUCE_LIVE_CONSTANT(10));
     //);
     bounds.removeFromTop(12);
-    bounds.removeFromBottom(2);
+    //bounds.removeFromBottom(2);
     bounds.removeFromLeft(20);
     bounds.removeFromRight(20);
+
     return bounds; 
 }
 
