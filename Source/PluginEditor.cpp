@@ -1,11 +1,3 @@
-/*
-  ==============================================================================
-
-    This file contains the basic framework code for a JUCE plugin editor.
-
-  ==============================================================================
-*/
-
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
@@ -77,6 +69,7 @@ void RotarySliderWithLabels::paint(juce::Graphics& g)
 
     auto sliderBounds = getSliderBounds();
 
+    //Keep for debugging
     //g.setColour(Colours::red);
     //g.drawRect(getLocalBounds());
     //g.setColour(Colours::yellow);
@@ -206,23 +199,10 @@ void ResponseCurveComponent::timerCallback()
 {
     if (parametersChanged.compareAndSetBool(false, true))
     {
-    DBG("params changed");
+        DBG("params changed");
+        updateChain();
 
-    //update the monochain
-    updateChain();
-
-    /* auto chainSettings = getChainSettings(audioProcessor.apvts);
-     auto peakCoefficients = makePeakFilter(chainSettings, audioProcessor.getSampleRate());
-     updateCoefficients(monoChain.get<ChainPositions::Peak>().coefficients, peakCoefficients);
-
-     auto lowCutCoefficients = makeLowCutFilter(chainSettings, audioProcessor.getSampleRate());
-     auto highCutCoefficients = makeHighCutFilter(chainSettings, audioProcessor.getSampleRate());
-
-     updateCutFilter(monoChain.get<ChainPositions::LowCut>(), lowCutCoefficients, chainSettings.lowCutSlope);
-     updateCutFilter(monoChain.get<ChainPositions::HighCut>(), highCutCoefficients, chainSettings.highCutSlope);*/
-
-     //signal a repaint
-    repaint();
+        repaint();
     }
 }
 
@@ -269,11 +249,15 @@ void ResponseCurveComponent::paint(juce::Graphics& g)
 {
     using namespace juce;
 
-    g.fillAll(Colours::black);
-
-    g.drawImage(background, getLocalBounds().toFloat());
-
     auto responseArea = getAnalysisArea();
+    auto fillArea = getRenderArea();
+
+    Rectangle<float> bg(fillArea.getX(), fillArea.getY(), fillArea.getWidth(), fillArea.getHeight());
+
+    g.setColour(Colours::olive);
+    g.fillRoundedRectangle(bg, 5.f);
+    
+    g.drawImage(background, getLocalBounds().toFloat());
 
     auto w = responseArea.getWidth();
 
@@ -344,7 +328,11 @@ void ResponseCurveComponent::paint(juce::Graphics& g)
         {
             responseCurve.lineTo(responseArea.getX() + j, outputMin);
             std::vector <double> sub(&mmags[j], &mmags[mmags.size() - 1]);
-            j += startSubPath(responseCurve, sub, outputMin, responseArea.getX() + j);
+            if (!sub.empty())
+            {
+                j += startSubPath(responseCurve, sub, outputMin, responseArea.getX() + j);
+
+            }
         }
         j++;
     }
@@ -357,14 +345,15 @@ void ResponseCurveComponent::resized()
 {
     using namespace juce;
     background = Image(Image::PixelFormat::RGB, getWidth(), getHeight(), true);
+    
 
     Graphics g(background);
 
     Array<float> freqs
     {
-        20, /*30, 40,*/ 50, 100,
-        200, /*300, 400,*/ 500, 1000,
-        2000, /*3000, 4000,*/ 5000, 10000,
+        20, 50, 100,
+        200, 500, 1000,
+        2000, 5000, 10000,
         20000
     };
 
@@ -390,9 +379,6 @@ void ResponseCurveComponent::resized()
     g.setColour(Colours::dimgrey);
     for (int i = 0; i < xs.size(); i++)
     {
-        //auto normX = mapFromLog10(f, 20.f, 20000.f);
-
-        //g.drawVerticalLine(getWidth() * normX, 0.f, getHeight());
         if (i && i != xs.size() - 1)
         {
             g.drawVerticalLine(xs[i], pass_top, pass_bottom);
@@ -407,12 +393,10 @@ void ResponseCurveComponent::resized()
     for (auto gDb : gain)
     {
         auto y = jmap(gDb, -24.f, 24.f, float(bottom), float(top));
-        //g.drawHorizontalLine(y, 0, getWidth());
         g.setColour(gDb == 0.f ? Colour(0u, 172u, 1u) : Colours::darkgrey);
         g.drawHorizontalLine(y, left, right);
     }
 
-    //g.drawRect(getAnalysisArea());
     g.setColour(Colours::lightgrey);
     const int fontHeight = 10;
     g.setFont(fontHeight);
@@ -498,7 +482,7 @@ juce::Rectangle<int> ResponseCurveComponent::getRenderArea()
     //    5 //JUCE_LIVE_CONSTANT(10));
     //);
     bounds.removeFromTop(12);
-    //bounds.removeFromBottom(2);
+    bounds.removeFromBottom(2);
     bounds.removeFromLeft(20);
     bounds.removeFromRight(20);
 
