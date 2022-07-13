@@ -343,7 +343,7 @@ SimpleEQAudioProcessorEditor::SimpleEQAudioProcessorEditor (SimpleEQAudioProcess
         addAndMakeVisible(comp);
     }
 
-    setSize (800, 400);
+    setSize (600, 480);
 }
 
 SimpleEQAudioProcessorEditor::~SimpleEQAudioProcessorEditor()
@@ -362,9 +362,12 @@ void SimpleEQAudioProcessorEditor::paint(juce::Graphics& g)
 void SimpleEQAudioProcessorEditor::resized()
 {
     auto bounds = getLocalBounds();
-    auto responseArea = bounds.removeFromTop(bounds.getHeight() * 0.33);
+    float hRatio = 25.F / 100.f; //JUCE_LIVE_CONSTANT(29) / 100.f;
+    auto responseArea = bounds.removeFromTop(bounds.getHeight() * hRatio);
 
     responseCurveComponent.setBounds(responseArea);
+
+    bounds.removeFromTop(20);
 
     auto lowCutArea = bounds.removeFromLeft(bounds.getWidth() * 0.33);
     auto highCutArea = bounds.removeFromRight(bounds.getWidth() * 0.5);
