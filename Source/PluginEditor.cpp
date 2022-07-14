@@ -398,6 +398,8 @@ void ResponseCurveComponent::paint(juce::Graphics& g)
         j++;
     }
 
+    leftChannelFFTPath.applyTransform(AffineTransform().translation(responseArea.getX(), responseArea.getY() ) );
+
     g.setColour(Colours::aliceblue);
     g.strokePath(leftChannelFFTPath, PathStrokeType(1.f, PathStrokeType::JointStyle::beveled) );
 
