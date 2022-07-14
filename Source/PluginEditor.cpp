@@ -169,7 +169,9 @@ juce::Rectangle<int> RotarySliderWithLabels::getSliderBounds() const
 }
 
 
-ResponseCurveComponent::ResponseCurveComponent(SimpleEQAudioProcessor& p) : audioProcessor(p)
+ResponseCurveComponent::ResponseCurveComponent(SimpleEQAudioProcessor& p) : 
+    audioProcessor(p),
+    leftChannelFifo(&audioProcessor.leftChannelFifo)
 {
     const auto& params = audioProcessor.getParameters();
     for (auto param : params)
@@ -197,6 +199,17 @@ void ResponseCurveComponent::parameterValueChanged(int parameterIndex, float new
 
 void ResponseCurveComponent::timerCallback()
 {
+    juce::AudioBuffer<float> tempIncomingBuffer;
+
+    while (leftChannelFifo->getNumCompleteBuffersAvailable())
+    {
+        if (leftChannelFifo->getAudioBuffer(tempIncomingBuffer))
+        {
+            auto size = tempIncomingBuffer.getNumSamples();
+            juce::FloatVectorOperations::copy(monoBuffer.getWritePointer(0, 0), monoBuffer.getReadPointer(0, size), monoBuffer.getNumSamples() - size);
+        }
+    }
+
     if (parametersChanged.compareAndSetBool(false, true))
     {
         DBG("params changed");

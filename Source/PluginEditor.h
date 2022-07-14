@@ -92,6 +92,11 @@ private:
 
     juce::Rectangle<int> getAnalysisArea();
 
+    SingleChannelSampleFifo<SimpleEQAudioProcessor::BlockType>* leftChannelFifo;
+    //SingleChannelSampleFifo<SimpleEQAudioProcessor::BlockType>* rightChannelFifo;
+
+    juce::AudioBuffer<float> monoBuffer;
+
 };
 
 //==============================================================================
