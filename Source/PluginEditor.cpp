@@ -222,11 +222,11 @@ void ResponseCurveComponent::updateChain()
 int startSubPath(
     juce::Path& responseCurve,
     const std::vector <double>& map,
-    const double& min, 
+    const std::vector<double> &mins,
     const float& x)
 {
     bool isFoundStart = false;
-    if (map.front() <= min)
+    if (map.front() <= mins.front())
     {
         isFoundStart = true;
         responseCurve.startNewSubPath(x, map.front());
@@ -234,9 +234,9 @@ int startSubPath(
     int j = 1;
     while (!isFoundStart && j < map.size())
     {
-        if (map[j] <= min)
+        if (map[j] <= mins[j])
         {
-            responseCurve.startNewSubPath(x + j - 1, min);
+            responseCurve.startNewSubPath(x + j - 1, mins[j]);
             responseCurve.lineTo(x + j, map[j]);
             isFoundStart = true;
         }
@@ -250,13 +250,14 @@ void ResponseCurveComponent::paint(juce::Graphics& g)
     using namespace juce;
 
     auto responseArea = getAnalysisArea();
-    auto fillArea = getRenderArea();
-
-    Rectangle<float> bg(fillArea.getX(), fillArea.getY(), fillArea.getWidth(), fillArea.getHeight());
-
+    /*auto fillArea = getRenderArea();
+    */
+    //Rectangle<float> bg(fillArea.getX(), fillArea.getY(), fillArea.getWidth(), fillArea.getHeight());
+    /*
     g.setColour(Colours::olive);
     g.fillRoundedRectangle(bg, 5.f);
-    
+    */
+
     g.drawImage(background, getLocalBounds().toFloat());
 
     auto w = responseArea.getWidth();
@@ -301,12 +302,13 @@ void ResponseCurveComponent::paint(juce::Graphics& g)
 
     Path responseCurve;
 
-    responseArea = getAnalysisArea();
+    responseArea = getRenderArea();
 
     const double outputMin = responseArea.getBottom();
     const double outputMax = responseArea.getY();
     auto map = [outputMin, outputMax](double input)
     {
+
         return jmap(input, -24.0, 24.0, outputMin, outputMax);
     };
     std::vector<double> mmags;
@@ -316,22 +318,40 @@ void ResponseCurveComponent::paint(juce::Graphics& g)
         mmags[i] = map(mags[i]);
     }
 
-    int j = startSubPath(responseCurve, mmags, outputMin, responseArea.getX());
+    std::vector<double> outputMins;
+    outputMins.resize(w);
+    for (int i = 0; i < w; i++)
+    {
+        outputMins[i] = outputMin;
+    }
+    std::vector<double> curve{ 15, 11, 8, 6, 5, 4, 4, 3, 3, 3, 2, 2, 2, 2 };
+    for (int i = 0; i <curve.size(); i++)
+    {
+        outputMins[i] -= curve[i];
+    }
+    for (int i = 0; i < curve.size(); i++)
+    {
+        outputMins[w - i - 1] -= curve[i];
+    }
+    // 15 = [[1], [1], [1], [1], [2], [2], [2], [3], [3], [4], [5,5], [6, 6, 6], [7, 7, 7, 7]]
+    // 14 = [[1], [1], [1], [2], [2], [2], [3], [3], [4], [5,5], [6, 6, 6], [7, 7, 7]]
+    // 13 = [[1], [1], [1], [2], [2], [3], [3], [4], [5,5], [6, 6], [7, 7, 7]]
+
+    int j = startSubPath(responseCurve, mmags, outputMins, responseArea.getX());
 
     while (j < mmags.size())
     {
-        if (mmags[j] < outputMin)
+        if (mmags[j] < outputMins[j])
         {
             responseCurve.lineTo(responseArea.getX() + j, mmags[j]);
         }
-        else if (mmags[j] >= outputMin)
+        else if (mmags[j] >= outputMins[j])
         {
-            responseCurve.lineTo(responseArea.getX() + j, outputMin);
+            responseCurve.lineTo(responseArea.getX() + j, outputMins[j]);
             std::vector <double> sub(&mmags[j], &mmags[mmags.size() - 1]);
             if (!sub.empty())
             {
-                j += startSubPath(responseCurve, sub, outputMin, responseArea.getX() + j);
-
+                j += startSubPath(responseCurve, sub, outputMins, responseArea.getX() + j);
             }
         }
         j++;
@@ -348,6 +368,13 @@ void ResponseCurveComponent::resized()
     
 
     Graphics g(background);
+
+    auto fillArea = getRenderArea();
+
+    Rectangle<float> bg(fillArea.getX(), fillArea.getY(), fillArea.getWidth(), fillArea.getHeight());
+
+    g.setColour(Colour(40u, 40u, 53u));
+    g.fillRoundedRectangle(bg, 15.f);
 
     Array<float> freqs
     {
@@ -460,7 +487,7 @@ void ResponseCurveComponent::resized()
     }
 
     g.setColour(Colours::orange);
-    g.drawRoundedRectangle(getRenderArea().toFloat(), 8.f, 1.f);
+    g.drawRoundedRectangle(getRenderArea().toFloat(), 15.f, 1.f);
 }
 
 juce::Rectangle<int> ResponseCurveComponent::getAnalysisArea()
