@@ -10,12 +10,6 @@
 
 #include <JuceHeader.h>
 
-enum Channel
-{
-    Right, // 0
-    Left   // 1
-};
-
 template<typename T>
 struct Fifo
 {
@@ -82,7 +76,7 @@ private:
 enum Channel
 {
     Right, //effectively 0
-    Left //effectively 1
+    Left  //effectively 1
 };
 
 template<typename BlockType>

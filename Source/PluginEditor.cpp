@@ -206,7 +206,15 @@ void ResponseCurveComponent::timerCallback()
         if (leftChannelFifo->getAudioBuffer(tempIncomingBuffer))
         {
             auto size = tempIncomingBuffer.getNumSamples();
-            juce::FloatVectorOperations::copy(monoBuffer.getWritePointer(0, 0), monoBuffer.getReadPointer(0, size), monoBuffer.getNumSamples() - size);
+            juce::FloatVectorOperations::copy(
+                monoBuffer.getWritePointer(0, 0),
+                monoBuffer.getReadPointer(0, size),
+                monoBuffer.getNumSamples() - size);
+        
+            juce::FloatVectorOperations::copy(
+                monoBuffer.getWritePointer(0, monoBuffer.getNumSamples() - size),
+                tempIncomingBuffer.getReadPointer(0, 0),
+                size);
         }
     }
 
