@@ -178,6 +178,11 @@ ResponseCurveComponent::ResponseCurveComponent(SimpleEQAudioProcessor& p) :
     {
         param->addListener(this);
     }
+
+    leftChannelFFTDataGenerator.changeOrder(FFTOrder::order2048);
+    monoBuffer.setSize(1, leftChannelFFTDataGenerator.getFFTSize() );
+
+
     updateChain();
 
     startTimerHz(60);
@@ -215,6 +220,8 @@ void ResponseCurveComponent::timerCallback()
                 monoBuffer.getWritePointer(0, monoBuffer.getNumSamples() - size),
                 tempIncomingBuffer.getReadPointer(0, 0),
                 size);
+
+            leftChannelFFTDataGenerator.produceFFTDataForRendering(monoBuffer, -48.f);
         }
     }
 

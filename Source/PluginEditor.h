@@ -183,6 +183,7 @@ private:
 
     juce::AudioBuffer<float> monoBuffer;
 
+    FFTDataGenerator<std::vector<float>> leftChannelFFTDataGenerator;
 };
 
 //==============================================================================
