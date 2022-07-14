@@ -333,9 +333,6 @@ void ResponseCurveComponent::paint(juce::Graphics& g)
     {
         outputMins[w - i - 1] -= curve[i];
     }
-    // 15 = [[1], [1], [1], [1], [2], [2], [2], [3], [3], [4], [5,5], [6, 6, 6], [7, 7, 7, 7]]
-    // 14 = [[1], [1], [1], [2], [2], [2], [3], [3], [4], [5,5], [6, 6, 6], [7, 7, 7]]
-    // 13 = [[1], [1], [1], [2], [2], [3], [3], [4], [5,5], [6, 6], [7, 7, 7]]
 
     int j = startSubPath(responseCurve, mmags, outputMins, responseArea.getX());
 
