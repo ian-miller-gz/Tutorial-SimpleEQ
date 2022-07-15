@@ -58,6 +58,50 @@ void LookAndFeel::drawRotarySlider(juce::Graphics& g,
     }
 }
 
+void LookAndFeel::drawToggleButton(juce::Graphics& g,
+    juce::ToggleButton& toggleButton,
+    bool shouldDrawButtonAsHighlighted,
+    bool shouldDrawButtonAsDown)
+{
+    using namespace juce;
+
+    Path powerButton;
+
+    auto bounds = toggleButton.getLocalBounds();
+    auto size = jmin(bounds.getWidth(), bounds.getHeight()) - 6;
+    auto r = bounds.withSizeKeepingCentre(size, size);
+
+    float ang = 30.f;
+
+    size -= 6;
+    
+    powerButton.addCentredArc(
+        r.getCentreX(), 
+        r.getCentreY(), 
+        size * 0.5f, 
+        size * 0.5f, 
+        0.f, 
+        degreesToRadians(ang), 
+        degreesToRadians(360.f - ang),
+        true);
+
+    powerButton.startNewSubPath(r.getCentreX(), r.getY());
+    
+    
+    powerButton.lineTo(r.getCentre().toFloat());
+
+    PathStrokeType pst(2.f, PathStrokeType::JointStyle::curved);
+
+
+    auto color = toggleButton.getToggleState() ? Colours::dimgrey : Colours::chartreuse;
+
+    g.setColour(color);
+
+    g.strokePath(powerButton, pst);
+
+    g.drawEllipse(r.toFloat(), 2.f);
+ }
+
 void RotarySliderWithLabels::paint(juce::Graphics& g)
 {
     using namespace juce;
@@ -679,12 +723,18 @@ SimpleEQAudioProcessorEditor::SimpleEQAudioProcessorEditor (SimpleEQAudioProcess
         addAndMakeVisible(comp);
     }
 
+    peakBypassedButton.setLookAndFeel(&lnf);
+    lowCutBypassedButton.setLookAndFeel(&lnf);
+    highCutBypassedButton.setLookAndFeel(&lnf);
+
     setSize (600, 480);
 }
 
 SimpleEQAudioProcessorEditor::~SimpleEQAudioProcessorEditor()
 {
-
+    peakBypassedButton.setLookAndFeel(nullptr);
+    lowCutBypassedButton.setLookAndFeel(nullptr);
+    highCutBypassedButton.setLookAndFeel(nullptr);
 }
 
 //==============================================================================
