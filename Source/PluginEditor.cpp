@@ -351,12 +351,14 @@ void ResponseCurveComponent::timerCallback()
     //{
     //    pathProducer.getPath(leftChannelFFTPath);
     //}
+    if (displayFFTAnalysis)
+    {
+        auto fftBounds = getAnalysisArea().toFloat();
+        auto sampleRate = audioProcessor.getSampleRate();
 
-    auto fftBounds = getAnalysisArea().toFloat();
-    auto sampleRate = audioProcessor.getSampleRate();
-
-    leftPathProducer.process(fftBounds, sampleRate);
-    rightPathProducer.process(fftBounds, sampleRate);
+        leftPathProducer.process(fftBounds, sampleRate);
+        rightPathProducer.process(fftBounds, sampleRate);
+    }
 
     if (parametersChanged.compareAndSetBool(false, true))
     {
@@ -367,6 +369,7 @@ void ResponseCurveComponent::timerCallback()
     }
     repaint();
 }
+
 
 void ResponseCurveComponent::updateChain()
 {
@@ -498,7 +501,7 @@ void ResponseCurveComponent::paint(juce::Graphics& g)
         outputMins[i] = outputMin;
     }
     std::vector<double> curve{ 15, 11, 8, 6, 5, 4, 4, 3, 3, 3, 2, 2, 2, 2 };
-    for (int i = 0; i <curve.size(); i++)
+    for (int i = 0; i < curve.size(); i++)
     {
         outputMins[i] -= curve[i];
     }
@@ -526,19 +529,21 @@ void ResponseCurveComponent::paint(juce::Graphics& g)
         }
         j++;
     }
-
-    auto leftChannelFFTPath = leftPathProducer.getPath();
-    leftChannelFFTPath.applyTransform(AffineTransform().translation(responseArea.getX(), responseArea.getY() ) );
-    auto rightChannelFFTPath = rightPathProducer.getPath();
-    rightChannelFFTPath.applyTransform(AffineTransform().translation(responseArea.getX(), responseArea.getY()));
-
-    g.setColour(Colours::olive);
-    g.strokePath(leftChannelFFTPath, PathStrokeType(1.f, PathStrokeType::JointStyle::beveled) );
-    g.setColour(Colours::olivedrab);
-    g.strokePath(rightChannelFFTPath, PathStrokeType(1.f, PathStrokeType::JointStyle::beveled));
-
     g.setColour(Colours::white);
     g.strokePath(responseCurve, PathStrokeType(1.f));
+
+    if (displayFFTAnalysis)
+    {
+        auto leftChannelFFTPath = leftPathProducer.getPath();
+        leftChannelFFTPath.applyTransform(AffineTransform().translation(responseArea.getX(), responseArea.getY()));
+        auto rightChannelFFTPath = rightPathProducer.getPath();
+        rightChannelFFTPath.applyTransform(AffineTransform().translation(responseArea.getX(), responseArea.getY()));
+
+        g.setColour(Colours::olive);
+        g.strokePath(leftChannelFFTPath, PathStrokeType(1.f, PathStrokeType::JointStyle::beveled));
+        g.setColour(Colours::olivedrab);
+        g.strokePath(rightChannelFFTPath, PathStrokeType(1.f, PathStrokeType::JointStyle::beveled));
+    }
 }
 
 void ResponseCurveComponent::resized()
@@ -697,9 +702,9 @@ juce::Rectangle<int> ResponseCurveComponent::getRenderArea()
 }
 
 //==============================================================================
-SimpleEQAudioProcessorEditor::SimpleEQAudioProcessorEditor (SimpleEQAudioProcessor& p): 
-    AudioProcessorEditor (&p),
-    audioProcessor (p),
+SimpleEQAudioProcessorEditor::SimpleEQAudioProcessorEditor(SimpleEQAudioProcessor& p) :
+    AudioProcessorEditor(&p),
+    audioProcessor(p),
     peakFreqSlider(*audioProcessor.apvts.getParameter("Peak Freq"), "Hz"),
     peakGainSlider(*audioProcessor.apvts.getParameter("Peak Gain"), "dB"),
     peakQualitySlider(*audioProcessor.apvts.getParameter("Peak Quality"), ""),
@@ -744,9 +749,9 @@ SimpleEQAudioProcessorEditor::SimpleEQAudioProcessorEditor (SimpleEQAudioProcess
 
     peakQualitySlider.labels.add({ 0.f, "0.1" });
     peakQualitySlider.labels.add({ 1.f, "10.0" });
-    
+
     for (auto* comp : getComps())
-    { 
+    {
         addAndMakeVisible(comp);
     }
 
@@ -788,9 +793,22 @@ SimpleEQAudioProcessorEditor::SimpleEQAudioProcessorEditor (SimpleEQAudioProcess
             comp->highCutSlopeSlider.setEnabled(!bypassed);
         }
     };
+    analyzerEnabledButton.onClick = [safePtr]()
+    {
+        if (auto comp = safePtr.getComponent())
+        {
+            auto enabled = comp->analyzerEnabledButton.getToggleState();
+            comp->responseCurveComponent.toggleAnalysisEnablement(enabled);
+        }
+    };
 
     setSize (600, 480);
 }
+
+    void ResponseCurveComponent::toggleAnalysisEnablement(bool enabled)
+    {
+        displayFFTAnalysis = enabled;
+    }
 
 SimpleEQAudioProcessorEditor::~SimpleEQAudioProcessorEditor()
 {

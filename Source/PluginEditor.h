@@ -262,6 +262,8 @@ struct ResponseCurveComponent : juce::Component,
 
     void resized() override;
 
+    void toggleAnalysisEnablement(bool isEnabled);
+
 private:
     SimpleEQAudioProcessor& audioProcessor;
     
@@ -278,6 +280,8 @@ private:
     juce::Rectangle<int> getAnalysisArea();
 
     PathProducer leftPathProducer, rightPathProducer;
+
+    bool displayFFTAnalysis = true;
 
     //SingleChannelSampleFifo<SimpleEQAudioProcessor::BlockType>* leftChannelFifo;
     ////SingleChannelSampleFifo<SimpleEQAudioProcessor::BlockType>* rightChannelFifo;
